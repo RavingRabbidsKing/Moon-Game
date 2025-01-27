@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Moon Adventure with Kerplop</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            color: white;
+            text-align: center;
+        }
+
+        #title {
+            position: absolute;
+            top: 10%;
+            width: 100%;
+            font-size: 2rem;
+            z-index: 10;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        #start-btn {
+            position: absolute;
+            top: 60%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #ff9800;
+            border: none;
+            color: white;
+            padding: 1rem 2rem;
+            font-size: 1.5rem;
+            border-radius: 10px;
+            cursor: pointer;
+            z-index: 10;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        #start-btn:hover {
+            background: #ffa733;
+        }
+
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div id="title">Fly to the Moon with Kerplop!</div>
+    <button id="start-btn">Start Adventure</button>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        let scene, camera, renderer, rocket, moon, stars;
+        let rocketMoving = false;
+        let landed = false;
+        let velocity = 0.05;
+        const playerSpeed = 0.2;
+        const playerControls = { forward: false, backward: false, left: false, right: false };
+
+        function init() {
+            // Scene setup
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            // Background (Stars)
+            const starGeometry = new THREE.BufferGeometry();
+            const starMaterial = new THREE.PointsMaterial({ color: 0xffffff });
+
+            const starVertices = [];
+            for (let i = 0; i < 10000; i++) {
+                const x = (Math.random() - 0.5) * 2000;
+                const y = (Math.random() - 0.5) * 2000;
+                const z = (Math.random() - 0.5) * 2000;
+                starVertices.push(x, y, z);
+            }
+
+            starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
+            stars = new THREE.Points(starGeometry, starMaterial);
+            scene.add(stars);
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+            scene.add(ambientLight);
+
+            const pointLight = new THREE.PointLight(0xffffff, 1);
+            pointLight.position.set(10, 50, 30);
+            scene.add(pointLight);
+
+            // Rocket
+            const rocketGeometry = new THREE.CylinderGeometry(0.5, 0.5, 2, 32);
+            const rocketMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+            rocket = new THREE.Mesh(rocketGeometry, rocketMaterial);
+            rocket.position.set(0, -5, 0);
+            scene.add(rocket);
+
+            // Moon
+            const moonGeometry = new THREE.SphereGeometry(10, 64, 64);
+            const moonMaterial = new THREE.MeshStandardMaterial({ color: 0xaaaaaa });
+            moon = new THREE.Mesh(moonGeometry, moonMaterial);
+            moon.position.set(0, -50, 0);
+            scene.add(moon);
+
+            // Camera position
+            camera.position.set(0, 0, 20);
+            camera.lookAt(rocket.position);
+
+            // Keyboard Controls
+            window.addEventListener('keydown', (e) => {
+                if (e.key === 'w') playerControls.forward = true;
+                if (e.key === 's') playerControls.backward = true;
+                if (e.key === 'a') playerControls.left = true;
+                if (e.key === 'd') playerControls.right = true;
+            });
+
+            window.addEventListener('keyup', (e) => {
+                if (e.key === 'w') playerControls.forward = false;
+                if (e.key === 's') playerControls.backward = false;
+                if (e.key === 'a') playerControls.left = false;
+                if (e.key === 'd') playerControls.right = false;
+            });
+
+            // Resize handler
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            stars.rotation.y += 0.0005; // Rotate stars for background effect
+
+            if (rocketMoving) {
+                rocket.position.y -= velocity;
+                camera.position.y -= velocity;
+                velocity += 0.001; // Simulates acceleration
+
+                if (rocket.position.y <= -40) { // Landed on the Moon
+                    rocketMoving = false;
+                    landed = true;
+                    velocity = 0;
+                    document.getElementById('title').textContent = "You and Kerplop have landed on the Moon! Explore it!";
+                }
+            }
+
+            if (landed) {
+                moon.rotation.y += 0.001; // Rotate Moon for effect
+
+                // Player Movement
+                if (playerControls.forward) rocket.position.z -= playerSpeed;
+                if (playerControls.backward) rocket.position.z += playerSpeed;
+                if (playerControls.left) rocket.position.x -= playerSpeed;
+                if (playerControls.right) rocket.position.x += playerSpeed;
+
+                camera.position.set(rocket.position.x, rocket.position.y + 5, rocket.position.z + 15);
+                camera.lookAt(rocket.position);
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        document.getElementById('start-btn').addEventListener('click', () => {
+            document.getElementById('start-btn').style.display = 'none';
+            document.getElementById('title').textContent = "Flying to the Moon...";
+            rocketMoving = true;
+        });
+
+        init();
+        animate();
+    </script>
+</body>
+</html>
